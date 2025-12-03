@@ -28,12 +28,12 @@ func solve(filename string) (int, int) {
 		panic(err)
 	}
 
+	answer1 := 0
+	answer2 := 0
+
 	for _, line := range lines {
 		fmt.Printf(line)
 	}
-
-	answer1 := 0
-	answer2 := 0
 
 	return answer1, answer2
 }
