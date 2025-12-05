@@ -2,8 +2,10 @@ package main
 
 import (
 	"bufio"
+	"cmp"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -34,8 +36,8 @@ func solve(filename string) (int, int64) {
 	var answer2 int64 = 0
 
 	freshFruitPairs := [][]int64{}
-	freshRanges := [][]int64{}
-	toSkip := map[int]bool{}
+	// freshRanges := [][]int64{}
+	// toSkip := map[int]bool{}
 
 	for _, line := range lines {
 		if line == "" {
@@ -54,37 +56,9 @@ func solve(filename string) (int, int64) {
 				panic(err)
 			}
 
-			newRange := []int64{startNum, endNum}
-			freshFruitPairs = append(freshFruitPairs, newRange)
+			freshFruitPairs = append(freshFruitPairs, []int64{startNum, endNum})
 
-			shouldAdd := len(freshRanges) == 0
-
-			for i, r := range freshRanges {
-				if newRange[0] >= r[0] && newRange[1] <= r[1] {
-					// Subset, throw away current range
-					shouldAdd = false
-					break
-				} else if newRange[1] < r[0] || newRange[0] > r[1] {
-					// No overlap, consider next line
-					shouldAdd = true
-				} else if newRange[0] <= r[0] && newRange[1] >= r[1] {
-					// Superset, throw away comparison range
-					shouldAdd = true
-					toSkip[i] = true
-				} else if newRange[0] >= r[0] && newRange[1] > r[1] {
-					// Last number bigger, adjust current range
-					shouldAdd = true
-					newRange[0] = r[1] + 1
-				} else if newRange[0] < r[0] && newRange[1] <= r[1] {
-					// First number smaller, adjust current range
-					shouldAdd = true
-					newRange[1] = r[0] - 1
-				}
-			}
-
-			if shouldAdd {
-				freshRanges = append(freshRanges, newRange)
-			}
+			// updateRanges(&freshRanges, []int64{startNum, endNum}, toSkip)
 		} else {
 			fruitNum, err := strconv.ParseInt(line, 10, 64)
 			if err != nil {
@@ -106,12 +80,17 @@ func solve(filename string) (int, int64) {
 		}
 	}
 
-	for i, r := range freshRanges {
-		if _, ok := toSkip[i]; ok {
-			continue
-		}
+	// for i, r := range freshRanges {
+	// 	if _, ok := toSkip[i]; ok {
+	// 		continue
+	// 	}
 
-		answer2 += r[1] - r[0] + 1
+	// 	answer2 += r[1] - r[0] + 1
+	// }
+
+	intervals := mergeIntervals(freshFruitPairs)
+	for _, interval := range intervals {
+		answer2 += interval[1] - interval[0] + 1
 	}
 
 	return answer1, answer2
@@ -133,4 +112,55 @@ func readLines(filename string) ([]string, error) {
 	}
 
 	return lines, scanner.Err()
+}
+
+func mergeIntervals(intervals [][]int64) [][]int64 {
+	slices.SortFunc(intervals, func(a, b []int64) int {
+		return cmp.Compare(a[0], b[0])
+	})
+
+	merged := [][]int64{intervals[0]}
+	for _, interval := range intervals[1:] {
+		prevIndex := len(merged) - 1
+		prev := merged[prevIndex]
+
+		if interval[0] > prev[1] {
+			merged = append(merged, interval)
+		} else if interval[1] > prev[1] {
+			prev[1] = interval[1]
+		}
+	}
+
+	return merged
+}
+
+func updateRanges(freshRanges *[][]int64, newRange []int64, toSkip map[int]bool) {
+	shouldAdd := len(*freshRanges) == 0
+
+	for i, r := range *freshRanges {
+		if newRange[0] >= r[0] && newRange[1] <= r[1] {
+			// Subset, throw away current range
+			shouldAdd = false
+			break
+		} else if newRange[1] < r[0] || newRange[0] > r[1] {
+			// No overlap, consider next line
+			shouldAdd = true
+		} else if newRange[0] <= r[0] && newRange[1] >= r[1] {
+			// Superset, throw away comparison range
+			shouldAdd = true
+			toSkip[i] = true
+		} else if newRange[0] >= r[0] && newRange[1] > r[1] {
+			// Last number bigger, adjust current range
+			shouldAdd = true
+			newRange[0] = r[1] + 1
+		} else if newRange[0] < r[0] && newRange[1] <= r[1] {
+			// First number smaller, adjust current range
+			shouldAdd = true
+			newRange[1] = r[0] - 1
+		}
+	}
+
+	if shouldAdd {
+		*freshRanges = append(*freshRanges, newRange)
+	}
 }
